@@ -1,0 +1,54 @@
+#Iniciamos La máquina virtual de HortonWorks
+
+#Primero creamos directorio tfm desde root
+mkdir tfm
+#aqui copiamos los archivos a utilizar..
+http://127.0.0.1:8080/#/main/views/FILES/1.0.0/LocalFiles
+
+#Una vez colocalos los archivos de manera local les quitamos las cabeceras:
+
+sed -i "1d" SuministroElectricoPorMunicipio.csv
+
+#ahora copiamos esta carpeta a hdfs
+hadoop fs -copyFromLocal tfm/ /user/root
+
+#verificamos
+hadoop fs -ls /user/root/tfm
+
+#Arrancamos Hive
+hive
+
+#creamos la base de datos
+create database tfm;
+
+#la ponemos en uso:
+use tfm;
+
+#creamos la primer tabla de suministros electricos:
+CREATE TABLE sum_elec(estado STRING, municipio STRING, total FLOAT) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED by '\n';
+LOAD DATA INPATH '/user/root/tfm/SuministroElectricoPorMun.csv' INTO TABLE SUM_ELECT;
+
+SELECT * FROM sum_elec LIMIT 5;
+
+#El top de países con mayor # de Suministros
+
+CREATE TABLE estados_mas_sum AS select estado, count(*) suministros
+from   sum_elec
+group by estado
+order by  suministros desc  limitt 10;
+
+#De esos países, cuales fueron los municiios con más sumnistros en 2015:
+
+create table mun_mas_sum as 
+select edo.estado, mun.municipio, sum(sumi) as suministros
+from  
+estados_mas_sum edo,
+(select estado,municipio, count(*) as sumi
+from   sum_elec
+group by estado,municipio) as mun
+where  edo.estado = mun.estado
+group by edo.estado,mun.municipio
+order by  suministros desc limit 30;
+
+
+
